@@ -1,0 +1,53 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © babebpx
+
+//@version=5
+indicator("Gold indicator", overlay = true)
+
+ema_zone_group = "EMA Zone"
+show_ema_zone = input.bool(false, "EMA Zone", group = ema_zone_group)
+buffer = input.float(0.6, "Buffer", group = ema_zone_group)
+
+show_angle = input.bool(false, "show angle candle")
+
+
+// ========== EMA ========== //
+ema_group = "EMA Settings"
+ema_1_period = input.int(100, title = "EMA 1", group = ema_group)
+ema_2_period = input.int(200, title = "EMA 2", group = ema_group)
+ema_3_period = input.int(720, title = "EMA 3", group = ema_group)
+
+src = close
+ema_1 = ta.ema(src, ema_1_period)
+ema_2 = ta.ema(src, ema_2_period)
+ema_3 = ta.ema(src, ema_3_period)
+
+h_ema_1 = plot(show_ema_zone ? ema_1 + buffer : ema_1, title = "EMA 1", color = color.green)
+m_ema_1 = plot(ema_1, title = "EMA 1", color = color.green)
+l_ema_1 = plot(show_ema_zone ? ema_1 - buffer : ema_1, title = "EMA 1", color = color.green)
+
+h_ema_2 = plot(show_ema_zone ? ema_2 + buffer : ema_2, title = "EMA 2", color = color.purple)
+m_ema_2 = plot(ema_2, title = "EMA 2", color = color.purple)
+l_ema_2 = plot(show_ema_zone ? ema_2 - buffer : ema_2, title = "EMA 2", color = color.purple)
+
+h_ema_3 = plot(show_ema_zone ? ema_3 + buffer : ema_3, title = "EMA 3", color = color.red)
+m_ema_3 = plot(ema_3, title = "EMA 3", color = color.red)
+l_ema_3 = plot(show_ema_zone ? ema_3 - buffer : ema_3, title = "EMA 3", color = color.red)
+
+fill(h_ema_1, l_ema_1, show_ema_zone ? color.new(color.green, 90) : color.white)
+fill(h_ema_2, l_ema_2, show_ema_zone ? color.new(color.purple, 90) : color.white)
+fill(h_ema_3, l_ema_3, show_ema_zone ? color.new(color.red, 90) : color.white)
+
+// ========== มุม ========== //
+lowest_3 = close[3] < open[3] ? close[3] : open[3]
+highest_3 = close[3] > open[3] ? close[3] : open[3]
+lowest_2 = close[2] < open[2] ? close[2] : open[2]
+highest_2 = close[2] > open[2] ? close[2] : open[2]
+lowest_1 = close[1] < open[1] ? close[1] : open[1]
+highest_1 = close[1] > open[1] ? close[1] : open[1]
+
+bearish_angle = show_angle and (lowest_2 > lowest_3) and (lowest_1 < lowest_2) and (timeframe.period == "60" or timeframe.period == "240")
+bullish_angle = show_angle and (highest_2 < highest_3) and (highest_1 > highest_2) and (timeframe.period == "60" or timeframe.period == "240")
+
+plotshape(bullish_angle, 'Bullish', shape.triangleup, location.belowbar, color.green, -2)
+plotshape(bearish_angle, 'Bearlish', shape.triangledown, location.abovebar, color.red, -2)
