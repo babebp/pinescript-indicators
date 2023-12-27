@@ -1,0 +1,553 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © babebpx
+
+//@version=5
+indicator("babebp: FULL ICT", overlay = true, max_bars_back = 1000, max_labels_count=500, max_lines_count=500, max_boxes_count=500)
+import PineCoders/VisibleChart/4
+
+
+// ========== INPUT ========== //
+GMT_TIMEZONE                = input.string('GMT-4', "Timezone", options = ['GMT-12','GMT-11','GMT-10','GMT-9','GMT-8','GMT-7','GMT-6','GMT-5','GMT-4','GMT-3','GMT-2','GMT-1','GMT+0','GMT+1','GMT+2','GMT+3','GMT+4','GMT+5','GMT+6','GMT+7','GMT+8','GMT+9','GMT+10','GMT+11','GMT+12','GMT+13','GMT+14'])
+
+var sessionStyleGroup       = 'Session Styles'
+showLabel                   = input.bool(defval = true, title='Label',inline = 'Session Label', group = sessionStyleGroup)
+labelSize                   = input.string(defval = 'small', title = '', options = ['huge', 'large', 'normal', 'small', 'tiny'],inline = 'Session Label', group = sessionStyleGroup)
+showLines                   = input.bool(defval = true, title='Border', inline = 'Session Line', group = sessionStyleGroup)
+lineStyle                   = input.string(defval = 'Dotted', title = "", options = ['Solid', 'Dotted', 'Dashed'], inline = 'Session Line', group = sessionStyleGroup)
+linesWidth                  = input.int(defval = 1, title = '', minval = 1, maxval = 4, inline = 'Session Line', tooltip = 'Border Width',group = sessionStyleGroup)
+showBackground              = input.bool(defval = true, title = 'Background', inline = 'Session Background Transparent',group = sessionStyleGroup)
+backgroundTransparent       = input.int(defval = 90, title = '', inline = 'Session Background Transparent', tooltip = 'Background Transparent Level',group = sessionStyleGroup)
+
+var sessionGroup            = 'Session Settings'
+showAsiaPriceDiff           = input.bool(defval = true, title = 'Show Asia Consolidation Range', group = sessionGroup)
+showCBDRPriceDiff           = input.bool(defval = true, title = 'Show CBDR Range', group = sessionGroup)
+
+var AsiaGroup               = 'Asia Settings'
+showAsia                    = input.bool(defval = true, title = '', inline = AsiaGroup, group = sessionGroup)
+AsiaLabel                   = input.string(defval = 'ASKZ (A)', title = '', inline = AsiaGroup, group = sessionGroup)
+AsiaSession                 = input.session('2000-0001', title = '', inline = AsiaGroup, group = sessionGroup)
+AsiaColor                   = input.color(#d47f00, '', inline = AsiaGroup, group = sessionGroup)
+
+var NewYorkGroup            = 'New York Settings'
+showNewYork                 = input.bool(defval = true, title = '', inline = NewYorkGroup, group = sessionGroup)
+NewYorkLabel                = input.string(defval = 'LDKZ (M)', title = '', inline = NewYorkGroup, group = sessionGroup)
+NewYorkSession              = input.session('0100-0501', title = '', inline = NewYorkGroup, group = sessionGroup)
+NewYorkColor                = input.color(#0076fd, '', inline = NewYorkGroup, group = sessionGroup)
+
+var LondonGroup             = 'London Settings'
+showLondon                  = input.bool(defval = true, title = '', inline = LondonGroup, group = sessionGroup)
+LondonLabel                 = input.string(defval = 'NYKZ (D)', title = '', inline = LondonGroup, group = sessionGroup)
+LondonSession               = input.session('0600-0901', title = '', inline = LondonGroup, group = sessionGroup)
+LondonColor                 = input.color(#ff0000, '', inline = LondonGroup, group = sessionGroup)
+
+var LondonCloseGroup        = 'London Close Settings'
+showLondonClose             = input.bool(defval = true, title = '', inline = LondonCloseGroup, group = sessionGroup)
+LondonCloseLabel            = input.string(defval = 'LDCKZ (X)', title = '', inline = LondonCloseGroup, group = sessionGroup)
+LondonCloseSession          = input.session('1000-1201', title = '', inline = LondonCloseGroup, group = sessionGroup)
+LondonCloseColor            = input.color(#a442f4, '', inline = LondonCloseGroup, group = sessionGroup)
+
+var CBDR_Group              = 'CBDR Settings'
+showCBDR                    = input.bool(defval = true, title = '', inline = CBDR_Group, group = sessionGroup)
+CBDR_Label                  = input.string(defval = 'CBDR', title = '', inline = CBDR_Group, group = sessionGroup)
+CBDR_Session                = input.session('1400-2001', title = '', inline = CBDR_Group, group = sessionGroup)
+CBDR_Color                  = input.color(#8a9390, 'CBDR', inline = CBDR_Group, group = sessionGroup)
+CBDR_Color_1SD              = input.color(#0afb9b, '1 SD', inline = CBDR_Group, group = sessionGroup)
+CBDR_Color_2SD              = input.color(#f7ff07, '2 SD', inline = CBDR_Group, group = sessionGroup)
+CBDR_Color_3SD              = input.color(#ffaa00, '3 SD', inline = CBDR_Group, group = sessionGroup)
+CBDR_Color_4SD              = input.color(#ff0000, '4 SD', inline = CBDR_Group, group = sessionGroup)
+
+var dayOfWeekStyleGroup     = 'Day of Week Styles'
+showDayLabel                = input.bool(defval = true, title='Label',inline = 'Day Label', group = dayOfWeekStyleGroup)
+labelDaySize                = input.string(defval = 'small', title = '', options = ['huge', 'large', 'normal', 'small', 'tiny'], inline = 'Day Label', group = dayOfWeekStyleGroup)
+showDayLines                = input.bool(defval = true, title='Border', inline = 'Day Line', group = dayOfWeekStyleGroup)
+lineDayStyle                = input.string(defval = 'Dotted', title = "", options = ['Solid', 'Dotted', 'Dashed'], inline = 'Day Line', group = dayOfWeekStyleGroup)
+lineDayWidth                = input.int(defval = 1, title = '', minval = 1, maxval = 4, inline = 'Day Line', tooltip = 'Border Width',group = dayOfWeekStyleGroup)
+showDayBackground           = input.bool(defval = true, title = 'Background', inline = 'Day Background Transparent',group = dayOfWeekStyleGroup)
+dayBackgroundTransparent    = input.int(defval = 97, title = '', inline = 'Day Background Transparent', tooltip = 'Background Transparent Level',group = dayOfWeekStyleGroup)
+
+var dayOfWeekGroup          = 'Day of Week Settings'
+var mondayGroup             = 'Monday Settings'
+mondayLabel                 = input.string(defval = 'Monday (A)', title = '', inline = mondayGroup, group = dayOfWeekGroup)
+mondaySession               = input.string(defval = 'Monday', title = '', options = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'], inline = mondayGroup, group = dayOfWeekGroup)
+mondayColor                 = input.color(#d47f00, '', inline = mondayGroup, group = dayOfWeekGroup)
+
+var tuesdayGroup            = 'Tuesday Settings'
+tuesdayLabel                = input.string(defval = 'Tuesday (M)', title = '', inline = tuesdayGroup, group = dayOfWeekGroup)
+tuesdaySession              = input.string(defval = 'Tuesday', title = '', options = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'], inline = tuesdayGroup, group = dayOfWeekGroup)
+tuesdayColor                = input.color(#0076fd, '', inline = tuesdayGroup, group = dayOfWeekGroup)
+
+var wednesdayGroup          = 'Wednesday Settings'
+wednesdayLabel              = input.string(defval = 'Wednesday (D)', title = '', inline = wednesdayGroup, group = dayOfWeekGroup)
+wednesdaySession            = input.string(defval = 'Wednesday', title = '', options = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'], inline = wednesdayGroup, group = dayOfWeekGroup)
+wednesdayColor              = input.color(#ff0000, '', inline = wednesdayGroup, group = dayOfWeekGroup)
+
+var thursdayGroup           = 'Thursday Settings'
+thursdayLabel               = input.string(defval = 'Thursday (X)', title = '', inline = thursdayGroup, group = dayOfWeekGroup)
+thursdaySession             = input.string(defval = 'Thursday', title = '', options = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'], inline = thursdayGroup, group = dayOfWeekGroup)
+thursdayColor               = input.color(#a442f4, '', inline = thursdayGroup, group = dayOfWeekGroup)
+
+var fridayGroup             = 'Friday Settings'
+fridayLabel                 = input.string(defval = 'Friday', title = '', inline = fridayGroup, group = dayOfWeekGroup)
+fridaySession               = input.string(defval = 'Friday', title = '', options = ['Monday', 'Tuesday', 'Wednesday', 'friday', 'Friday', 'Saturday', 'Sunday'], inline = fridayGroup, group = dayOfWeekGroup)
+fridayColor                 = input.color(#71686f, '', inline = fridayGroup, group = dayOfWeekGroup)
+
+
+// ========== VARIABLE ========== //
+
+NEWYORK_TIMEZONE    = 'America/New_York'
+
+// ========== FUNCTION ========== //
+
+getLineStyle(_style) =>
+    result = switch _style
+        'Solid'     => line.style_solid
+        'Dotted'    => line.style_dotted
+        'Dashed'    => line.style_dashed
+    result
+
+getTextSize(_size) =>
+    result = switch _size
+        'huge'      => size.huge
+        'large'     => size.large
+        'normal'    => size.normal
+        'small'     => size.small
+        'tiny'      => size.tiny
+    result
+
+getDayOfWeek(_day) =>
+    result = switch _day
+        'Monday'     => dayofweek.monday
+        'Tuesday'    => dayofweek.tuesday
+        'Wednesday'  => dayofweek.wednesday
+        'Thursday'   => dayofweek.thursday
+        'Friday'     => dayofweek.friday
+    result
+
+getPipValue(symbol) =>
+    string pairSymbol = na
+
+    if str.endswith(symbol, 'USD')
+        10
+    else if str.endswith(symbol, 'CAD')    
+        pairSymbol := 'USDCAD'
+    else if str.endswith(symbol, 'CHF')
+        pairSymbol := 'USDCHF'
+    else if str.endswith(symbol, 'AUD')
+        pairSymbol := 'AUDUSD'
+    else if str.endswith(symbol, 'NZD')
+        pairSymbol := 'NZDUSD'
+    else if str.endswith(symbol, 'GBP')
+        pairSymbol := 'GBPUSD'
+    else if str.endswith(symbol, 'JPY')
+        pairSymbol := 'USDJPY'    
+    
+    getPairPrice = request.security(pairSymbol, 'D', close)
+    result = str.endswith(symbol, 'JPY') ? 10 / getPairPrice * 100 : 10 / getPairPrice
+    result
+        
+getPipSizeSymbol(symbol) =>
+    if str.endswith(symbol, 'JPY')
+        0.001
+    else
+        0.0001
+
+drawIntradayBox(rangeTime, sessionColor, sessionName, showPriceDiff) =>
+
+    // get style
+    sessionLabelSize    = getTextSize(labelSize)
+    sessionLineStyle    = getLineStyle(lineStyle)
+
+    // get pip size for calculate asia consolidation range
+    pipValue            = getPipValue(syminfo.tickerid)
+    pipSize             = getPipSizeSymbol(syminfo.tickerid)
+
+    // check if time now is in session range
+    inSession           = not na(time(timeframe.period, rangeTime, NEWYORK_TIMEZONE))
+
+    // get start time ; if now in session and last candle is not in session then startTime = time 
+    startTime           = 0
+    startTime           := inSession and not inSession[1] ? time : startTime[1]
+
+    // define 4 lines for draw a box
+    var line lowHLine   = na
+    var line topHLine   = na
+    var line leftVLine  = na
+    var line rightVLine = na
+    var label lbl       = na
+    var box bgBox       = na
+
+    // define low and high for draw high&lwo of the box
+    var low_val         = 0.0
+    var high_val        = 0.0
+
+    // if now in session and last candle is not then this is start of session ; update low and high for this session
+    if inSession and not inSession[1]
+        low_val         := low
+        high_val        := high
+        high_val
+
+    // if now in session and timeframe is below 'D' timeframe
+    if inSession and timeframe.isintraday
+        // middle of range
+        middleRange = (startTime + time) / 2
+
+        // update box by remove last box and then we will create an updated one 
+        if inSession[1]
+            line.delete(lowHLine)
+            line.delete(topHLine)
+            line.delete(leftVLine)
+            line.delete(rightVLine)
+            label.delete(lbl)
+            box.delete(bgBox)
+
+        // if new low is happened then update low
+        if low < low_val
+            low_val     := low
+            low_val
+
+        // if new high is happend then update high
+        if high > high_val
+            high_val    := high
+            high_val
+
+        // plot background
+        if showBackground
+            bgBox       := box.new(startTime, high_val, time, low_val, xloc=xloc.bar_time, bgcolor = color.new(sessionColor, backgroundTransparent), border_width=0)
+
+        // plot line
+        if showLines
+            lowHLine    := line.new(startTime, low_val, time, low_val, xloc=xloc.bar_time, color=sessionColor, style=sessionLineStyle, width=linesWidth)
+            topHLine    := line.new(startTime, high_val, time, high_val, xloc=xloc.bar_time, color=sessionColor, style=sessionLineStyle, width=linesWidth)
+            leftVLine   := line.new(startTime, high_val, startTime, low_val, xloc=xloc.bar_time, color=sessionColor, style=sessionLineStyle, width=linesWidth)
+            rightVLine  := line.new(time, high_val, time, low_val, xloc=xloc.bar_time, color=sessionColor, style=sessionLineStyle, width=linesWidth)
+
+        if showLabel
+            lbl         := label.new(middleRange, low_val * 0.9995, showPriceDiff ? sessionName + '\n' + '(' + str.tostring(math.abs(high_val - low_val) / pipSize, '##.##') + ')' : sessionName, xloc = xloc.bar_time, textcolor = sessionColor, style = label.style_label_down, color = color.new(color.white, 100), size = sessionLabelSize)
+
+drawInWeekBox(day, sessionColor, sessionName) =>
+
+    // get day of week
+    targetDay = getDayOfWeek(day)
+
+    // get style
+    sessionLabelSize    = getTextSize(labelDaySize)
+    sessionLineStyle    = getLineStyle(lineDayStyle)
+
+    // check if time now is in session range
+    inSession           = dayofweek(time(timeframe.period, syminfo.session, NEWYORK_TIMEZONE)) == targetDay
+
+    // get start time ; if now in session and last candle is not in session then startTime = time 
+    startTime           = 0
+    startTime           := inSession and not inSession[1] ? time : startTime[1]
+ 
+    // define 4 lines for draw a box
+    var line lowHLine   = na
+    var line topHLine   = na
+    var line leftVLine  = na
+    var line rightVLine = na
+    var label lbl       = na
+    var box bgBox       = na
+
+    // define low and high for draw high&lwo of the box
+    var low_val         = 0.0
+    var high_val        = 0.0
+
+    // if now in session and last candle is not then this is start of session ; update low and high for this session
+    if inSession and not inSession[1]
+        low_val         := low
+        high_val        := high
+        high_val
+
+    // if now in session and timeframe is below 'D' timeframe
+    if inSession and timeframe.isintraday
+        // middle of range
+        middleRange = (startTime + time) / 2
+
+        // update box by remove last box and then we will create an updated one 
+        if inSession[1]
+            line.delete(lowHLine)
+            line.delete(topHLine)
+            line.delete(leftVLine)
+            line.delete(rightVLine)
+            label.delete(lbl)
+            box.delete(bgBox)
+
+        // if new low is happened then update low
+        if low < low_val
+            low_val     := low
+            low_val
+
+        // if new high is happend then update high
+        if high > high_val
+            high_val    := high
+            high_val
+
+        // plot background
+        if showDayBackground
+            bgBox       := box.new(startTime, high_val, time, low_val, xloc=xloc.bar_time, bgcolor = color.new(sessionColor, dayBackgroundTransparent), border_width=0)
+
+        // plot line
+        if showDayLines
+            lowHLine    := line.new(startTime, low_val, time, low_val, xloc=xloc.bar_time, color=sessionColor, style=sessionLineStyle, width=lineDayWidth)
+            topHLine    := line.new(startTime, high_val, time, high_val, xloc=xloc.bar_time, color=sessionColor, style=sessionLineStyle, width=lineDayWidth)
+            leftVLine   := line.new(startTime, high_val, startTime, low_val, xloc=xloc.bar_time, color=sessionColor, style=sessionLineStyle, width=lineDayWidth)
+            rightVLine  := line.new(time, high_val, time, low_val, xloc=xloc.bar_time, color=sessionColor, style=sessionLineStyle, width=lineDayWidth)
+
+        if showDayLabel
+            lbl         := label.new(middleRange, high_val, sessionName, xloc = xloc.bar_time, textcolor = sessionColor, style = label.style_label_down, color = color.new(color.white, 100), size = sessionLabelSize)
+
+
+drawCBDR(rangeTime, sessionColor, sessionName, showPriceDiff) =>
+
+    // get style
+    sessionLabelSize    = getTextSize(labelSize)
+    sessionLineStyle    = getLineStyle(lineStyle)
+
+    // get pip size for calculate asia consolidation range
+    pipValue            = getPipValue(syminfo.tickerid)
+    pipSize             = getPipSizeSymbol(syminfo.tickerid)
+
+    // check if time now is in session range
+    inSession           = not na(time(timeframe.period, '1400-2001', NEWYORK_TIMEZONE))
+
+    // get start time ; if now in session and last candle is not in session then startTime = time 
+    startTime           = 0
+    startTime           := inSession and not inSession[1] ? time : startTime[1]
+
+    // define 4 lines for draw a box
+    var line lowHLine       = na
+    var line topHLine       = na
+    var line leftVLine      = na
+    var line rightVLine     = na
+    var label lbl           = na
+    var box bgBox           = na
+
+    // define for plot standard deviation
+    float high_1SD          = na
+    float high_2SD          = na
+    float high_3SD          = na
+    float high_4SD          = na
+    float low_1SD           = na
+    float low_2SD           = na
+    float low_3SD           = na
+    float low_4SD           = na
+    var line lowHLine_1SD   = na
+    var line topHLine_1SD   = na
+    var line lowHLine_2SD   = na
+    var line topHLine_2SD   = na
+    var line lowHLine_3SD   = na
+    var line topHLine_3SD   = na
+    var line lowHLine_4SD   = na
+    var line topHLine_4SD   = na
+    var label lbl_1SD       = na
+    var label lbl_2SD       = na
+    var label lbl_3SD       = na
+    var label lbl_4SD       = na
+    var label lbl_minus1SD  = na
+    var label lbl_minus2SD  = na
+    var label lbl_minus3SD  = na
+    var label lbl_minus4SD  = na
+    var box bgBox_1SD       = na
+    var box bgBox_2SD       = na
+    var box bgBox_3SD       = na
+    var box bgBox_4SD       = na
+    var box bgBox_minus1SD  = na
+    var box bgBox_minus2SD  = na
+    var box bgBox_minus3SD  = na
+    var box bgBox_minus4SD  = na
+    float middleHeight_1SD  = na
+    float middleHeight_2SD  = na
+    float middleHeight_3SD  = na
+    float middleHeight_4SD  = na
+    float middleLow_1SD     = na
+    float middleLow_2SD     = na
+    float middleLow_3SD     = na
+    float middleLow_4SD     = na
+
+    // define range of cbdr to calculate standard deviation
+    float cbdr_range        = na
+
+    // define low and high for draw high&lwo of the box
+    var low_val         = 0.0
+    var high_val        = 0.0
+
+    // if now in session and last candle is not then this is start of session ; update low and high for this session
+    if inSession and not inSession[1]
+        low_val         := low
+        high_val        := high
+        high_val
+
+    // if now in session and timeframe is below 'D' timeframe
+    if inSession and timeframe.isintraday
+
+        // define middle of range to plot text middle of session
+        middleRange     = (startTime + time) / 2
+
+        // update box by remove last box and then we will create an updated one 
+        if inSession[1]
+            line.delete(lowHLine)
+            line.delete(topHLine)
+            line.delete(leftVLine)
+            line.delete(rightVLine)
+            label.delete(lbl)
+            box.delete(bgBox)
+            
+            // update standard deviation horizontal line
+            line.delete(lowHLine_1SD)
+            line.delete(topHLine_1SD)
+            line.delete(lowHLine_2SD)
+            line.delete(topHLine_2SD)
+            line.delete(lowHLine_3SD)
+            line.delete(topHLine_3SD)
+            line.delete(lowHLine_4SD)
+            line.delete(topHLine_4SD)
+            label.delete(lbl_1SD)
+            label.delete(lbl_2SD)
+            label.delete(lbl_3SD)
+            label.delete(lbl_4SD)
+            label.delete(lbl_minus1SD)
+            label.delete(lbl_minus2SD)
+            label.delete(lbl_minus3SD)
+            label.delete(lbl_minus4SD)
+            box.delete(bgBox_1SD)
+            box.delete(bgBox_2SD)
+            box.delete(bgBox_3SD)
+            box.delete(bgBox_4SD)
+            box.delete(bgBox_minus1SD)
+            box.delete(bgBox_minus2SD)
+            box.delete(bgBox_minus3SD)
+            box.delete(bgBox_minus4SD)
+   
+
+        // if new low is happened then update low
+        if low < low_val
+            low_val     := low
+            low_val
+
+        // if new high is happend then update high
+        if high > high_val
+            high_val    := high
+            high_val
+            
+        // plot line
+        if showLines
+            cbdr_range := math.abs(high_val - low_val)
+            high_1SD   := high_val + 1 * cbdr_range
+            high_2SD   := high_val + 2 * cbdr_range
+            high_3SD   := high_val + 3 * cbdr_range
+            high_4SD   := high_val + 4 * cbdr_range
+
+            low_1SD   := low_val - 1 * cbdr_range
+            low_2SD   := low_val - 2 * cbdr_range
+            low_3SD   := low_val - 3 * cbdr_range
+            low_4SD   := low_val - 4 * cbdr_range
+
+            // middle of range
+            middleHeight_1SD    := (high_1SD + high_val) / 2
+            middleHeight_2SD    := (high_2SD + high_1SD) / 2
+            middleHeight_3SD    := (high_3SD + high_2SD) / 2
+            middleHeight_4SD    := (high_4SD + high_3SD) / 2
+
+            middleLow_1SD       := (low_val + low_1SD) / 2
+            middleLow_2SD       := (low_1SD + low_2SD) / 2
+            middleLow_3SD       := (low_2SD + low_3SD) / 2
+            middleLow_4SD       := (low_3SD + low_4SD) / 2
+
+            leftVLine   := line.new(startTime, high_4SD, startTime, low_4SD, xloc=xloc.bar_time, color=sessionColor, style=sessionLineStyle, width=linesWidth)
+            rightVLine  := line.new(time, high_4SD, time, low_4SD, xloc=xloc.bar_time, color=sessionColor, style=sessionLineStyle, width=linesWidth)
+
+            topHLine       := line.new(startTime, high_val, time, high_val, xloc=xloc.bar_time, color=sessionColor, style=sessionLineStyle, width=linesWidth)
+            topHLine_1SD   := line.new(startTime, high_1SD, time, high_1SD, xloc=xloc.bar_time, color=sessionColor, style=sessionLineStyle, width=linesWidth)
+            topHLine_2SD   := line.new(startTime, high_2SD, time, high_2SD, xloc=xloc.bar_time, color=sessionColor, style=sessionLineStyle, width=linesWidth)
+            topHLine_3SD   := line.new(startTime, high_3SD, time, high_3SD, xloc=xloc.bar_time, color=sessionColor, style=sessionLineStyle, width=linesWidth)
+            topHLine_4SD   := line.new(startTime, high_4SD, time, high_4SD, xloc=xloc.bar_time, color=sessionColor, style=sessionLineStyle, width=linesWidth)
+
+            lowHLine       := line.new(startTime, low_val, time, low_val, xloc=xloc.bar_time, color=sessionColor, style=sessionLineStyle, width=linesWidth)
+            lowHLine_1SD   := line.new(startTime, low_1SD, time, low_1SD, xloc=xloc.bar_time, color=sessionColor, style=sessionLineStyle, width=linesWidth)
+            lowHLine_2SD   := line.new(startTime, low_2SD, time, low_2SD, xloc=xloc.bar_time, color=sessionColor, style=sessionLineStyle, width=linesWidth)
+            lowHLine_3SD   := line.new(startTime, low_3SD, time, low_3SD, xloc=xloc.bar_time, color=sessionColor, style=sessionLineStyle, width=linesWidth)
+            lowHLine_4SD   := line.new(startTime, low_4SD, time, low_4SD, xloc=xloc.bar_time, color=sessionColor, style=sessionLineStyle, width=linesWidth)
+            
+        // plot background
+        if showBackground
+            bgBox           := box.new(startTime, high_val, time, low_val, xloc=xloc.bar_time, bgcolor = color.new(sessionColor, backgroundTransparent), border_width=0)
+            bgBox_1SD       := box.new(startTime, high_1SD, time, high_val, xloc=xloc.bar_time, bgcolor = color.new(CBDR_Color_1SD, backgroundTransparent), border_width=0)
+            bgBox_2SD       := box.new(startTime, high_2SD, time, high_1SD, xloc=xloc.bar_time, bgcolor = color.new(CBDR_Color_2SD, backgroundTransparent), border_width=0)
+            bgBox_3SD       := box.new(startTime, high_3SD, time, high_2SD, xloc=xloc.bar_time, bgcolor = color.new(CBDR_Color_3SD, backgroundTransparent), border_width=0)
+            bgBox_4SD       := box.new(startTime, high_4SD, time, high_3SD, xloc=xloc.bar_time, bgcolor = color.new(CBDR_Color_4SD, backgroundTransparent), border_width=0)
+            bgBox_minus1SD  := box.new(startTime, low_val, time, low_1SD, xloc=xloc.bar_time, bgcolor = color.new(CBDR_Color_1SD, backgroundTransparent), border_width=0)
+            bgBox_minus2SD  := box.new(startTime, low_1SD, time, low_2SD, xloc=xloc.bar_time, bgcolor = color.new(CBDR_Color_2SD, backgroundTransparent), border_width=0)
+            bgBox_minus3SD  := box.new(startTime, low_2SD, time, low_3SD, xloc=xloc.bar_time, bgcolor = color.new(CBDR_Color_3SD, backgroundTransparent), border_width=0)
+            bgBox_minus4SD  := box.new(startTime, low_3SD, time, low_4SD, xloc=xloc.bar_time, bgcolor = color.new(CBDR_Color_4SD, backgroundTransparent), border_width=0)
+
+
+        if showLabel
+            lbl            := label.new(middleRange, low_val * 0.9995, showPriceDiff ? sessionName + '\n' + '(' + str.tostring(math.abs(high_val - low_val) / pipSize, '##.##') + ')' : sessionName, xloc = xloc.bar_time, textcolor = sessionColor, style = label.style_label_down, color = color.new(color.white, 100), size = sessionLabelSize)
+            lbl_1SD        := label.new(middleRange, middleHeight_1SD * 0.9996, '1 SD', xloc = xloc.bar_time, textcolor = sessionColor, style = label.style_label_down, color = color.new(color.white, 100), size = sessionLabelSize)
+            lbl_2SD        := label.new(middleRange, middleHeight_2SD * 0.9996, '2 SD', xloc = xloc.bar_time, textcolor = sessionColor, style = label.style_label_down, color = color.new(color.white, 100), size = sessionLabelSize)
+            lbl_3SD        := label.new(middleRange, middleHeight_3SD * 0.9996, '3 SD', xloc = xloc.bar_time, textcolor = sessionColor, style = label.style_label_down, color = color.new(color.white, 100), size = sessionLabelSize)
+            lbl_4SD        := label.new(middleRange, middleHeight_4SD * 0.9996, '4 SD', xloc = xloc.bar_time, textcolor = sessionColor, style = label.style_label_down, color = color.new(color.white, 100), size = sessionLabelSize)
+
+            lbl_minus1SD    := label.new(middleRange, middleLow_1SD * 0.9996, '-1 SD', xloc = xloc.bar_time, textcolor = sessionColor, style = label.style_label_down, color = color.new(color.white, 100), size = sessionLabelSize)
+            lbl_minus2SD    := label.new(middleRange, middleLow_2SD * 0.9996, '-2 SD', xloc = xloc.bar_time, textcolor = sessionColor, style = label.style_label_down, color = color.new(color.white, 100), size = sessionLabelSize)
+            lbl_minus3SD    := label.new(middleRange, middleLow_3SD * 0.9996, '-3 SD', xloc = xloc.bar_time, textcolor = sessionColor, style = label.style_label_down, color = color.new(color.white, 100), size = sessionLabelSize)
+            lbl_minus4SD    := label.new(middleRange, middleLow_4SD * 0.9996, '-4 SD', xloc = xloc.bar_time, textcolor = sessionColor, style = label.style_label_down, color = color.new(color.white, 100), size = sessionLabelSize)
+
+
+// ========== LOGIC ========== //
+
+// Time of Day //
+
+if showAsia
+    drawIntradayBox(AsiaSession, AsiaColor, AsiaLabel, showAsiaPriceDiff)
+
+if showNewYork
+    drawIntradayBox(NewYorkSession, NewYorkColor, NewYorkLabel, false)
+
+if showLondon
+    drawIntradayBox(LondonSession, LondonColor, LondonLabel, false)
+
+if showLondonClose
+    drawIntradayBox(LondonCloseSession, LondonCloseColor, LondonCloseLabel, false)
+
+if showCBDR
+    drawCBDR(CBDR_Session, CBDR_Color, CBDR_Label, showCBDRPriceDiff)
+
+// Day Of Week //
+
+drawInWeekBox(mondaySession, mondayColor, mondayLabel)
+drawInWeekBox(tuesdaySession, tuesdayColor, tuesdayLabel)
+drawInWeekBox(wednesdaySession, wednesdayColor, wednesdayLabel)
+drawInWeekBox(thursdaySession, thursdayColor, thursdayLabel)
+drawInWeekBox(fridaySession, fridayColor, fridayLabel)
+
+
+// IPDA TRUE DAY //
+
+if timeframe.isdaily
+    // Today
+    today_IPDA = line.new(bar_index, close, bar_index, close, extend = extend.both, color = color.rgb(80, 81, 84, 70))
+
+    // Last 20 Days
+    last20DaysIPDA = line.new(bar_index[20], close, bar_index[20], close, extend = extend.both, color = color.rgb(80, 81, 84, 70))
+    last20DaysIPDALabel = label.new(bar_index[float(20)/2], VisibleChart.high(), text = 'IPDA 20 Days', color = color.rgb(255, 255, 255, 100))
+
+    // Last 40 Days
+    last40DaysIPDA = line.new(bar_index[40], close, bar_index[40], close, extend = extend.both, color = color.rgb(80, 81, 84, 70))
+    last40DaysIPDALabel = label.new(bar_index[(40 + 20)/2], VisibleChart.high(), text = 'IPDA 40 Days', color = color.rgb(255, 255, 255, 100))
+
+    // Last 60 Days
+    last60DaysIPDA = line.new(bar_index[60], close, bar_index[60], close, extend = extend.both, color = color.rgb(80, 81, 84, 70))
+    last60DaysIPDALabel = label.new(bar_index[(60 + 40)/2], VisibleChart.high(), text = 'IPDA 60 Days', color = color.rgb(255, 255, 255, 100))
+    
+
+    // Reset Line
+    line.delete(today_IPDA[1])
+    line.delete(last20DaysIPDA[1])
+    line.delete(last40DaysIPDA[1])
+    line.delete(last60DaysIPDA[1])
+
+    // Reset Label
+    label.delete(last20DaysIPDALabel[1])
+    label.delete(last40DaysIPDALabel[1])
+    label.delete(last60DaysIPDALabel[1])
